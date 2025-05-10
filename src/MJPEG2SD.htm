@@ -5,7 +5,6 @@
   <title>ESP32-CAM Відеоспостереження</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/png" href="favicon.ico">
-  <script src="common.js"></script>
   <style>
     :root {
       --bg-color: #e6f1fb;
@@ -114,6 +113,7 @@
       justify-content: center;
       gap: 10px;
       margin-top: 20px;
+      flex-wrap: wrap;
     }
     
     .control-btn {
@@ -273,6 +273,53 @@
       margin-bottom: 10px;
     }
     
+    /* Tab navigation styling */
+    #tabContainer {
+      display: flex;
+      overflow-x: auto;
+      margin-bottom: 15px;
+    }
+    
+    .tabButton {
+      padding: 10px 15px;
+      background-color: #f1f1f1;
+      border: 1px solid var(--border-color);
+      border-bottom: none;
+      border-radius: 5px 5px 0 0;
+      cursor: pointer;
+      margin-right: 5px;
+    }
+    
+    .tabButton.active {
+      background-color: var(--section-bg);
+      border-bottom: 3px solid var(--accent-color);
+    }
+    
+    .tabPanel {
+      display: none;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 0 5px 5px 5px;
+      padding: 15px;
+    }
+    
+    /* Night mode */
+    body.dark-mode {
+      --bg-color: #1a1f2c;
+      --section-bg: #2d3748;
+      --text-color: #e2e8f0;
+      --border-color: #4a5568;
+      --notification-bg: #553c3c;
+    }
+    
+    body.dark-mode .tabButton {
+      background-color: #3a4556;
+    }
+    
+    body.dark-mode .recording-item {
+      background-color: #3a4556;
+    }
+    
     @media (max-width: 768px) {
       .content {
         flex-direction: column;
@@ -285,8 +332,13 @@
       .nav-menu {
         gap: 15px;
       }
+      
+      .video-controls {
+        flex-direction: column;
+      }
     }
   </style>
+  <script src="common.js"></script>
 </head>
 
 <body>
@@ -316,7 +368,7 @@
             <button id="mute_btn" class="control-btn mute-btn" onclick="toggleMute()">
               <span id="mute_icon">🔊</span> Вимкнути звук
             </button>
-            <button id="download_btn" class="control-btn download-btn" onclick="downloadVideo()">
+            <button id="download_btn" class="control-btn download-btn" onclick="dnldFiles()">
               <span>⬇</span> Завантажити відео
             </button>
           </div>
@@ -375,18 +427,16 @@
         <div class="video-container">
           <h2 class="video-title">Налаштування</h2>
           <div>
-            <!-- Preserved settings section from original HTML -->
             <div id="tabContainer">
               <div id="tab_conf" class="tabButton">General</div>
               <div id="tab_cam" class="tabButton">Camera</div>
               <div id="tab_SD" class="tabButton">SD</div>
-              <div id="tab_stream" class="tabButton">stream</div>
+              <div id="tab_stream" class="tabButton">Stream</div>
               <div id="tab_update" class="tabButton">Update</div>
             </div>
 
             <!-- Camera Configuration Tab -->
             <div id="conf_panel" class="tabPanel">
-              <!-- Preserve all original settings inputs -->
               <div class="buttons">
                 <input type="text" id="hostID" value="ESP32 camera" size=32 onchange="updateConfig(this)"><button onclick="saveReboot()">Save&amp;Reboot</button>
               </div>
@@ -399,7 +449,6 @@
                 <label>Time: </label><input type="text" id="timeZone" value="1" size=6 onchange="updateConfig(this)">
                 <label>NTP server: </label><input type="text" id="ntpServer" value="pool.ntp.org" size=16 onchange="updateConfig(this)">
               </div>
-              <!-- More original settings can be added here -->
             </div>
             
             <!-- Camera Settings Tab -->
@@ -449,14 +498,12 @@
                 <label>Frame rate: </label><input type="text" id="frameInterval" value="0" size=6 onchange="updateConfig(this)">
                 <label>Max capture files: </label><input type="text" id="maxFiles" value="0" size=6 onchange="updateConfig(this)">
                 <label>File playback FPS: </label><input type="text" id="playbackFPS" value="1" size=6 onchange="updateConfig(this)">
-                <input type="checkbox" id="autoUpload">Upload movies to FTP
-                <input type="checkbox" id="dbgMotion">Debug motion
-                <input type="checkbox" id="useFlash">Use flash LED
-                <input type="checkbox" id="useMotion">Use motion detect
+                <input type="checkbox" id="autoUpload" onchange="updateConfig(this)">Upload movies to FTP
+                <input type="checkbox" id="dbgMotion" onchange="updateConfig(this)">Debug motion
+                <input type="checkbox" id="useFlash" onchange="updateConfig(this)">Use flash LED
+                <input type="checkbox" id="useMotion" onchange="updateConfig(this)">Use motion detect
               </div>
             </div>
-            
-            <!-- More settings tabs can be preserved here -->
             
             <!-- Stream Settings Tab -->
             <div id="stream_panel" class="tabPanel">
@@ -517,7 +564,7 @@
       });
       
       // Find the nav item that called this function and make it active
-      event.target.classList.add('active');
+      event.currentTarget.classList.add('active');
     }
     
     function toggleRecord() {
@@ -541,24 +588,17 @@
       
       if (muteIcon.textContent === '🔊') {
         muteIcon.textContent = '🔇';
-        muteBtn.textContent = ' Увімкнути звук';
-        // Implement mute logic if needed
+        muteBtn.innerHTML = '<span id="mute_icon">🔇</span> Увімкнути звук';
+        // Audio muting logic could be added here
       } else {
         muteIcon.textContent = '🔊';
-        muteBtn.textContent = ' Вимкнути звук';
-        // Implement unmute logic if needed
+        muteBtn.innerHTML = '<span id="mute_icon">🔊</span> Вимкнути звук';
+        // Audio unmuting logic could be added here
       }
-    }
-    
-    function downloadVideo() {
-      // This should call the original download function from common.js
-      // Or we can implement a new one if needed
-      alert("Функція завантаження викликана");
     }
     
     function toggleTheme() {
       document.body.classList.toggle('dark-mode');
-      // Implement theme switching logic
     }
     
     // Display recordings in the sidebar
@@ -575,7 +615,7 @@
           
           li.innerHTML = `
             <span class="recording-date">${dateStr}</span>
-            <span class="play-icon" onclick="playRecording('${file.name}')">▶</span>
+            <span class="play-icon" onclick="playFile('${file.name}')">▶</span>
           `;
           
           recordingsList.appendChild(li);
@@ -585,13 +625,7 @@
       }
     }
     
-    function playRecording(fileName) {
-      // This should call the original playback function from common.js
-      console.log("Play recording:", fileName);
-      // Implement playback logic
-    }
-    
-    // Override the original getFiles function to update our UI
+    // Override the original getFiles function to also update our UI
     const originalGetFiles = window.getFiles;
     window.getFiles = function() {
       originalGetFiles();
@@ -626,7 +660,7 @@
         });
       });
       
-      // Show the first tab by default
+      // Show the first tab by default in settings
       const firstTab = document.querySelector('.tabButton');
       if (firstTab) firstTab.click();
       
