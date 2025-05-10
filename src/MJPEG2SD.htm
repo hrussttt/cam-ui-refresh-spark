@@ -4,7 +4,7 @@
 <head>
   <title>ESP32-CAM Відеоспостереження</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/png" href="favicon.ico">
+  <link rel="icon" type="image/png" href="favicon.png">
   <style>
     :root {
       --bg-color: #e6f1fb;
@@ -338,6 +338,7 @@
       }
     }
   </style>
+  <!-- IMPORTANT: Use a relative path (no leading slash) for common.js -->
   <script src="common.js"></script>
 </head>
 
@@ -546,8 +547,32 @@
   <div id="player" class="hidden"></div>
   
   <script>
-    // Original functions from common.js will be used
-    
+    // Initialize UI when the page loads
+    window.addEventListener('load', function() {
+      // Set up tabs in settings section
+      document.querySelectorAll('.tabButton').forEach((tab, index) => {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('.tabPanel').forEach(panel => panel.style.display = 'none');
+          document.querySelectorAll('.tabButton').forEach(t => t.classList.remove('active'));
+          
+          const panels = document.querySelectorAll('.tabPanel');
+          if (panels[index]) {
+            panels[index].style.display = 'block';
+            tab.classList.add('active');
+          }
+        });
+      });
+      
+      // Show the first tab by default in settings
+      const firstTab = document.querySelector('.tabButton');
+      if (firstTab) firstTab.click();
+      
+      // Get the files for the recordings list
+      if (typeof getFiles === 'function') {
+        getFiles();
+      }
+    });
+
     // UI specific functions
     function showSection(section) {
       // Hide all sections
@@ -573,12 +598,16 @@
         recordBtn.classList.remove('recording');
         recordBtn.innerHTML = '<span class="dot"></span> Почати запис';
         // Call the original record stop function
-        stopSD();
+        if (typeof stopSD === 'function') {
+          stopSD();
+        }
       } else {
         recordBtn.classList.add('recording');
         recordBtn.innerHTML = '<span class="dot"></span> Зупинити запис';
         // Call the original record start function
-        startSD();
+        if (typeof startSD === 'function') {
+          startSD();
+        }
       }
     }
     
@@ -601,72 +630,71 @@
       document.body.classList.toggle('dark-mode');
     }
     
-    // Display recordings in the sidebar
-    function updateRecordingsList(files) {
+    // Function to update recordings list in the sidebar
+    function updateRecordingsList() {
       const recordingsList = document.getElementById('recordings_list');
+      const fileListDiv = document.getElementById('file_list');
       recordingsList.innerHTML = '';
       
-      if (files && files.length > 0) {
-        files.forEach((file, index) => {
-          const li = document.createElement('li');
-          li.className = 'recording-item';
-          
-          const dateStr = file.name.replace('.mjpeg', '').replace(/_/g, ':');
-          
-          li.innerHTML = `
-            <span class="recording-date">${dateStr}</span>
-            <span class="play-icon" onclick="playFile('${file.name}')">▶</span>
-          `;
-          
-          recordingsList.appendChild(li);
-        });
+      if (fileListDiv) {
+        const checkboxes = fileListDiv.querySelectorAll('input[type="checkbox"]');
+        if (checkboxes && checkboxes.length > 0) {
+          checkboxes.forEach((checkbox, index) => {
+            if (index < 5) { // Show only recent 5 recordings in sidebar
+              const li = document.createElement('li');
+              li.className = 'recording-item';
+              
+              const dateStr = checkbox.value.replace('.mjpeg', '').replace(/_/g, ':');
+              
+              li.innerHTML = `
+                <span class="recording-date">${dateStr}</span>
+                <span class="play-icon" onclick="viewFile('${checkbox.value}')">▶</span>
+              `;
+              
+              recordingsList.appendChild(li);
+            }
+          });
+        } else {
+          recordingsList.innerHTML = '<p>Немає доступних записів</p>';
+        }
       } else {
         recordingsList.innerHTML = '<p>Немає доступних записів</p>';
       }
     }
     
-    // Override the original getFiles function to also update our UI
-    const originalGetFiles = window.getFiles;
-    window.getFiles = function() {
-      originalGetFiles();
-      // After getting files, update our recordings list
-      setTimeout(() => {
-        const fileListDiv = document.getElementById('file_list');
-        if (fileListDiv) {
-          const files = Array.from(fileListDiv.querySelectorAll('input[type="checkbox"]')).map(cb => {
-            return { 
-              name: cb.value,
-              checked: cb.checked 
-            };
-          });
-          updateRecordingsList(files);
-        }
-      }, 500);
+    // Helper function to play a specific file
+    function viewFile(filename) {
+      // Check if the viewFile function exists in common.js
+      if (typeof viewFile === 'function') {
+        viewFile(filename);
+      } else {
+        console.log('viewFile function not available');
+        alert('Unable to play file: ' + filename);
+      }
     }
-    
-    // Initialize the UI when the page loads
-    window.addEventListener('load', function() {
-      // Set up the tabs
-      document.querySelectorAll('.tabButton').forEach((tab, index) => {
-        tab.addEventListener('click', function() {
-          document.querySelectorAll('.tabPanel').forEach(panel => panel.style.display = 'none');
-          document.querySelectorAll('.tabButton').forEach(t => t.classList.remove('active'));
+
+    // Override the original getFiles function to also update our UI
+    // We'll use a setInterval to periodically check if getFiles is defined
+    let checkInterval = setInterval(function() {
+      if (typeof getFiles === 'function') {
+        clearInterval(checkInterval);
+        
+        // Store the original getFiles function
+        const originalGetFiles = getFiles;
+        
+        // Replace it with our version
+        window.getFiles = function() {
+          // Call the original
+          originalGetFiles();
           
-          const panels = document.querySelectorAll('.tabPanel');
-          if (panels[index]) {
-            panels[index].style.display = 'block';
-            tab.classList.add('active');
-          }
-        });
-      });
-      
-      // Show the first tab by default in settings
-      const firstTab = document.querySelector('.tabButton');
-      if (firstTab) firstTab.click();
-      
-      // Get the files for the recordings list
-      getFiles();
-    });
+          // After getting files, update our recordings list
+          setTimeout(updateRecordingsList, 500);
+        };
+        
+        // Initial file listing
+        getFiles();
+      }
+    }, 500);
   </script>
 </body>
 </html>
