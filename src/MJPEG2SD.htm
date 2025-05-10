@@ -1,0 +1,638 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>ESP32-CAM Відеоспостереження</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="favicon.ico">
+  <script src="common.js"></script>
+  <style>
+    :root {
+      --bg-color: #e6f1fb;
+      --section-bg: #ffffff;
+      --accent-color: #007bff;
+      --text-color: #333333;
+      --border-color: #dddddd;
+      --notification-bg: #ffe8e8;
+      --active-nav: #ff6b6b;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background-color: var(--section-bg);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .nav-menu {
+      display: flex;
+      gap: 30px;
+    }
+    
+    .nav-item {
+      cursor: pointer;
+      padding: 10px 0;
+      position: relative;
+      font-weight: 500;
+    }
+    
+    .nav-item.active {
+      color: var(--active-nav);
+    }
+    
+    .nav-item.active:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: var(--active-nav);
+    }
+    
+    .content {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .video-container {
+      flex: 1 1 65%;
+      min-width: 300px;
+      background-color: var(--section-bg);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar {
+      flex: 1 1 30%;
+      min-width: 250px;
+      max-width: 350px;
+      background-color: var(--section-bg);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .video-title {
+      font-size: 24px;
+      font-weight: 500;
+      text-align: center;
+      margin-bottom: 20px;
+      margin-top: 0;
+    }
+    
+    .video-frame {
+      width: 100%;
+      background-color: #333;
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .video-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .control-btn {
+      padding: 10px 20px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    
+    .record-btn {
+      background-color: #f1f1f1;
+      color: #333;
+    }
+    
+    .record-btn.recording {
+      background-color: #ff6b6b;
+      color: white;
+    }
+    
+    .record-btn .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background-color: #ff6b6b;
+      border-radius: 50%;
+    }
+    
+    .record-btn.recording .dot {
+      background-color: white;
+    }
+    
+    .mute-btn, .download-btn {
+      background-color: #f1f1f1;
+      color: #333;
+    }
+    
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 15px;
+      color: var(--accent-color);
+    }
+    
+    .recording-list, .notification-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .recording-item, .notification-item {
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      background-color: #f1f7ff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .notification-item {
+      background-color: var(--notification-bg);
+      border-left: 4px solid #ff6b6b;
+    }
+    
+    .recording-date, .notification-date {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .play-icon {
+      color: var(--accent-color);
+      cursor: pointer;
+    }
+    
+    .notification-icon {
+      margin-right: 5px;
+      color: #ff6b6b;
+    }
+    
+    .notification-message {
+      font-weight: 500;
+    }
+    
+    .notification-id {
+      font-size: 12px;
+      color: #888;
+      margin-top: 3px;
+    }
+    
+    .theme-switch {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #333 50%, #f1f1f1 50%);
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    /* Hide sections that aren't currently selected */
+    .section {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    .section.active {
+      display: flex;
+    }
+    
+    /* Original styles preserved for functionality */
+    th {
+      text-align: left;
+    }
+    
+    .buttons {
+      padding: 5px;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .col-2 {
+      columns: 2;
+    }
+    
+    .col-3 {
+      columns: 3;
+    }
+    
+    .vBtnDiv {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, auto));
+      grid-gap: 5px;
+      width: 100%;
+    }
+    
+    /* Make original elements adapt to new style */
+    #mjpeg_dest {
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      min-height: 380px;
+      object-fit: contain;
+    }
+    
+    #file_list {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+    
+    @media (max-width: 768px) {
+      .content {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        max-width: none;
+      }
+      
+      .nav-menu {
+        gap: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header class="header">
+      <nav class="nav-menu">
+        <div class="nav-item active" onclick="showSection('stream')">Трансляція</div>
+        <div class="nav-item" onclick="showSection('archive')">Архів</div>
+        <div class="nav-item" onclick="showSection('notifications')">Сповіщення</div>
+        <div class="nav-item" onclick="showSection('settings')">Налаштування</div>
+      </nav>
+      <div class="theme-switch" id="theme_switch" onclick="toggleTheme()"></div>
+    </header>
+    
+    <div class="content">
+      <!-- Stream Section -->
+      <div id="stream_section" class="section active">
+        <div class="video-container">
+          <h2 class="video-title">Live Стрім</h2>
+          <div class="video-frame">
+            <img id="mjpeg_dest" onclick="fullSize()"/>
+          </div>
+          <div class="video-controls">
+            <button id="record_btn" class="control-btn record-btn" onclick="toggleRecord()">
+              <span class="dot"></span> Почати запис
+            </button>
+            <button id="mute_btn" class="control-btn mute-btn" onclick="toggleMute()">
+              <span id="mute_icon">🔊</span> Вимкнути звук
+            </button>
+            <button id="download_btn" class="control-btn download-btn" onclick="downloadVideo()">
+              <span>⬇</span> Завантажити відео
+            </button>
+          </div>
+        </div>
+        
+        <div class="sidebar">
+          <h3 class="sidebar-title">Архів Записів</h3>
+          <ul id="recordings_list" class="recording-list">
+            <!-- Recordings will be populated here -->
+          </ul>
+        </div>
+      </div>
+      
+      <!-- Archive Section -->
+      <div id="archive_section" class="section">
+        <div class="video-container">
+          <h2 class="video-title">Архів</h2>
+          <div id="file_list"></div>
+          <div class="vBtnDiv">
+            <button id="show_hide_btn" class="control-btn" onclick="showHideAction()">Показати</button>
+            <button id="del_files" class="control-btn" onclick="delFiles()">Видалити</button>
+            <button id="dnld_files" class="control-btn" onclick="dnldFiles()">Завантажити</button>
+            <button id="view_files" class="control-btn" onclick="viewFiles()">Перегляд</button>
+            <button id="stop_files" class="control-btn" onclick="stopView()">Зупинити</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Notifications Section -->
+      <div id="notifications_section" class="section">
+        <div class="video-container">
+          <h2 class="video-title">Сповіщення</h2>
+          <ul class="notification-list">
+            <li class="notification-item">
+              <div>
+                <div class="notification-message">
+                  <span class="notification-icon">⚠️</span> Рух виявлено
+                </div>
+                <div class="notification-id">ID: 1 - 28.02.2025 10:21</div>
+              </div>
+            </li>
+            <li class="notification-item">
+              <div>
+                <div class="notification-message">
+                  <span class="notification-icon">⚠️</span> Рух виявлено
+                </div>
+                <div class="notification-id">ID: 2 - 28.02.2025 10:22</div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+      
+      <!-- Settings Section -->
+      <div id="settings_section" class="section">
+        <div class="video-container">
+          <h2 class="video-title">Налаштування</h2>
+          <div>
+            <!-- Preserved settings section from original HTML -->
+            <div id="tabContainer">
+              <div id="tab_conf" class="tabButton">General</div>
+              <div id="tab_cam" class="tabButton">Camera</div>
+              <div id="tab_SD" class="tabButton">SD</div>
+              <div id="tab_stream" class="tabButton">stream</div>
+              <div id="tab_update" class="tabButton">Update</div>
+            </div>
+
+            <!-- Camera Configuration Tab -->
+            <div id="conf_panel" class="tabPanel">
+              <!-- Preserve all original settings inputs -->
+              <div class="buttons">
+                <input type="text" id="hostID" value="ESP32 camera" size=32 onchange="updateConfig(this)"><button onclick="saveReboot()">Save&amp;Reboot</button>
+              </div>
+              <div class="buttons col-2">
+                <label>WiFi SSID: </label><input type="text" id="ssid" size=16 onchange="updateConfig(this)">
+                <label>WiFi password: </label><input type="password" id="pass" size=16 onchange="updateConfig(this)">
+                <label>AP SSID: </label><input type="text" id="apSsid" size=16 onchange="updateConfig(this)">
+                <label>AP password: </label><input type="password" id="apPass" size=16 onchange="updateConfig(this)">
+                <label>Date: </label><input type="text" id="hostName" value="010122" size=6 onchange="updateConfig(this)">
+                <label>Time: </label><input type="text" id="timeZone" value="1" size=6 onchange="updateConfig(this)">
+                <label>NTP server: </label><input type="text" id="ntpServer" value="pool.ntp.org" size=16 onchange="updateConfig(this)">
+              </div>
+              <!-- More original settings can be added here -->
+            </div>
+            
+            <!-- Camera Settings Tab -->
+            <div id="cam_panel" class="tabPanel">
+              <div class="buttons col-3">
+                <label>Resolution: </label>
+                <select id="framesize" onchange="updateConfig(this)">
+                  <option value="10">UXGA(1600x1200)</option>
+                  <option value="9">SXGA(1280x1024)</option>
+                  <option value="8">XGA(1024x768)</option>
+                  <option value="7">SVGA(800x600)</option>
+                  <option value="6">VGA(640x480)</option>
+                  <option value="5">CIF(400x296)</option>
+                  <option value="4">QVGA(320x240)</option>
+                  <option value="3">HQVGA(240x176)</option>
+                  <option value="0">QQVGA(160x120)</option>
+                </select>
+                <label>Quality: </label><input type="range" id="quality" min="10" max="63" value="10" onchange="updateConfig(this)">
+                <label>Brightness: </label><input type="range" id="brightness" min="-2" max="2" value="0" onchange="updateConfig(this)">
+                <label>Contrast: </label><input type="range" id="contrast" min="-2" max="2" value="0" onchange="updateConfig(this)">
+                <label>Saturation: </label><input type="range" id="saturation" min="-2" max="2" value="0" onchange="updateConfig(this)">
+                <label>Sharpness: </label><input type="range" id="sharpness" min="-2" max="2" value="0" onchange="updateConfig(this)">
+                <label>Special Effect: </label>
+                <select id="special_effect" onchange="updateConfig(this)">
+                  <option value="0">No Effect</option>
+                  <option value="1">Negative</option>
+                  <option value="2">Grayscale</option>
+                  <option value="3">Red Tint</option>
+                  <option value="4">Green Tint</option>
+                  <option value="5">Blue Tint</option>
+                  <option value="6">Sepia</option>
+                </select>
+              </div>
+            </div>
+            
+            <!-- SD Card Settings Tab -->
+            <div id="SD_panel" class="tabPanel">
+              <div class="buttons">
+                <label>SD free/size: </label><label id="sdFree">0 / 0</label>
+                <button onclick="getSDCard()" id="refresh_sd">Refresh SD</button>
+                <button onclick="setFPS(0)" id="stop_capture_btn">Stop capture</button>
+                <button onclick="setFPS(-1)" id="restart_capture_btn">Restart capture</button>
+              </div>
+              <div class="buttons col-2">
+                <label>Capture duration (min): </label><input type="text" id="captureInterval" value="0" size=6 onchange="updateConfig(this)">
+                <label>Min frames per file: </label><input type="text" id="minFrames" value="0" size=6 onchange="updateConfig(this)">
+                <label>Frame rate: </label><input type="text" id="frameInterval" value="0" size=6 onchange="updateConfig(this)">
+                <label>Max capture files: </label><input type="text" id="maxFiles" value="0" size=6 onchange="updateConfig(this)">
+                <label>File playback FPS: </label><input type="text" id="playbackFPS" value="1" size=6 onchange="updateConfig(this)">
+                <input type="checkbox" id="autoUpload">Upload movies to FTP
+                <input type="checkbox" id="dbgMotion">Debug motion
+                <input type="checkbox" id="useFlash">Use flash LED
+                <input type="checkbox" id="useMotion">Use motion detect
+              </div>
+            </div>
+            
+            <!-- More settings tabs can be preserved here -->
+            
+            <!-- Stream Settings Tab -->
+            <div id="stream_panel" class="tabPanel">
+              <div class="buttons">
+                <label>Stream</label>
+                <button id="toggle_stream" onclick="toggleStream()">Stop stream</button>
+              </div>
+              <div class="buttons col-2">
+                <label>Video Feed: </label><input type="text" size=32 id="streamUrl" readonly>
+                <label>Web page: </label><input type="text" size=32 id="pageUrl" readonly>
+              </div>
+            </div>
+            
+            <!-- Update Tab -->
+            <div id="update_panel" class="tabPanel">
+              <div class="buttons">
+                <label>Update Firmware</label>
+                <form method='POST' action='/update' enctype='multipart/form-data'>
+                  <input type='file' name='update'>
+                  <input type='submit' value='Update'>
+                </form>
+              </div>
+              <div class="buttons">
+                <label>Select and upload file to storage</label>
+                <form method='POST' action='/store' enctype='multipart/form-data'>
+                  <input type='file' name='upload'>
+                  <input type='submit' value='Upload'>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Original hidden elements preserved for functionality -->
+  <div id="message" class="hidden"></div>
+  <iframe id="fileFrame" name="fileFrame" class="hidden"></iframe>
+  <div id="player" class="hidden"></div>
+  
+  <script>
+    // Original functions from common.js will be used
+    
+    // UI specific functions
+    function showSection(section) {
+      // Hide all sections
+      document.querySelectorAll('.section').forEach(el => {
+        el.classList.remove('active');
+      });
+      
+      // Show selected section
+      document.getElementById(section + '_section').classList.add('active');
+      
+      // Update active nav item
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.remove('active');
+      });
+      
+      // Find the nav item that called this function and make it active
+      event.target.classList.add('active');
+    }
+    
+    function toggleRecord() {
+      const recordBtn = document.getElementById('record_btn');
+      if (recordBtn.classList.contains('recording')) {
+        recordBtn.classList.remove('recording');
+        recordBtn.innerHTML = '<span class="dot"></span> Почати запис';
+        // Call the original record stop function
+        stopSD();
+      } else {
+        recordBtn.classList.add('recording');
+        recordBtn.innerHTML = '<span class="dot"></span> Зупинити запис';
+        // Call the original record start function
+        startSD();
+      }
+    }
+    
+    function toggleMute() {
+      const muteBtn = document.getElementById('mute_btn');
+      const muteIcon = document.getElementById('mute_icon');
+      
+      if (muteIcon.textContent === '🔊') {
+        muteIcon.textContent = '🔇';
+        muteBtn.textContent = ' Увімкнути звук';
+        // Implement mute logic if needed
+      } else {
+        muteIcon.textContent = '🔊';
+        muteBtn.textContent = ' Вимкнути звук';
+        // Implement unmute logic if needed
+      }
+    }
+    
+    function downloadVideo() {
+      // This should call the original download function from common.js
+      // Or we can implement a new one if needed
+      alert("Функція завантаження викликана");
+    }
+    
+    function toggleTheme() {
+      document.body.classList.toggle('dark-mode');
+      // Implement theme switching logic
+    }
+    
+    // Display recordings in the sidebar
+    function updateRecordingsList(files) {
+      const recordingsList = document.getElementById('recordings_list');
+      recordingsList.innerHTML = '';
+      
+      if (files && files.length > 0) {
+        files.forEach((file, index) => {
+          const li = document.createElement('li');
+          li.className = 'recording-item';
+          
+          const dateStr = file.name.replace('.mjpeg', '').replace(/_/g, ':');
+          
+          li.innerHTML = `
+            <span class="recording-date">${dateStr}</span>
+            <span class="play-icon" onclick="playRecording('${file.name}')">▶</span>
+          `;
+          
+          recordingsList.appendChild(li);
+        });
+      } else {
+        recordingsList.innerHTML = '<p>Немає доступних записів</p>';
+      }
+    }
+    
+    function playRecording(fileName) {
+      // This should call the original playback function from common.js
+      console.log("Play recording:", fileName);
+      // Implement playback logic
+    }
+    
+    // Override the original getFiles function to update our UI
+    const originalGetFiles = window.getFiles;
+    window.getFiles = function() {
+      originalGetFiles();
+      // After getting files, update our recordings list
+      setTimeout(() => {
+        const fileListDiv = document.getElementById('file_list');
+        if (fileListDiv) {
+          const files = Array.from(fileListDiv.querySelectorAll('input[type="checkbox"]')).map(cb => {
+            return { 
+              name: cb.value,
+              checked: cb.checked 
+            };
+          });
+          updateRecordingsList(files);
+        }
+      }, 500);
+    }
+    
+    // Initialize the UI when the page loads
+    window.addEventListener('load', function() {
+      // Set up the tabs
+      document.querySelectorAll('.tabButton').forEach((tab, index) => {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('.tabPanel').forEach(panel => panel.style.display = 'none');
+          document.querySelectorAll('.tabButton').forEach(t => t.classList.remove('active'));
+          
+          const panels = document.querySelectorAll('.tabPanel');
+          if (panels[index]) {
+            panels[index].style.display = 'block';
+            tab.classList.add('active');
+          }
+        });
+      });
+      
+      // Show the first tab by default
+      const firstTab = document.querySelector('.tabButton');
+      if (firstTab) firstTab.click();
+      
+      // Get the files for the recordings list
+      getFiles();
+    });
+  </script>
+</body>
+</html>
